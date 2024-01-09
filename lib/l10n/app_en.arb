@@ -1,0 +1,9 @@
+{
+  "helloWorld": "Hello World!",
+  "title": "Tasks List",
+  "inputPlaceholder": "Enter text here",
+  "submit": "Submit",
+  "@helloWorld": {
+    "description": "The conventional newborn programmer greeting"
+  }
+}

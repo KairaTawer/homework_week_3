@@ -1,125 +1,74 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'main_bloc.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:homework_week_3/features/tasks/domain/language_model.dart';
+import 'package:homework_week_3/features/tasks/presentation/blocs/languages_bloc.dart';
+import 'package:homework_week_3/utils/constants.dart';
+import 'features/tasks/presentation/blocs/tasks_bloc.dart';
+import 'features/tasks/presentation/screens/main_screen.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'injection.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  await Hive.initFlutter();
+  await Hive.openBox(appBoxName);
+  configureDependencies();
+  LanguageBloc languageBloc = await LanguageBloc.create();
+  runApp(MyApp(languageBloc: languageBloc));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MyApp extends StatefulWidget {
+
+  final LanguageBloc languageBloc;
+
+  const MyApp({super.key, required this.languageBloc});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-        title: 'Flutter Demo',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-          useMaterial3: true,
-        ),
-        home: BlocProvider(
-          create: (context) => ListItemBloc(),
-          child: const MyHomePage(title: 'Flutter Bloc List Example'),
-        ));
-  }
+  _MyAppState createState() => _MyAppState(languageBloc: languageBloc);
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class _MyAppState extends State<MyApp> {
+  late Locale _locale = Locale.fromSubtags(languageCode: Hive.box(appBoxName).get(selectedLanguageKey, defaultValue: Language.kz.code));
 
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  final TextEditingController _textController = TextEditingController();
-  int? _editingItemIndex;
-
-  void _onEnterClicked(ListItemBloc listItemBloc) {
-    if (_textController.text.isEmpty) return;
-
-    if (_editingItemIndex != null) {
-      listItemBloc
-          .add(UpdateItemEvent(_editingItemIndex!, _textController.text));
-      _editingItemIndex = null;
-    } else {
-      listItemBloc.add(AddItemEvent(_textController.text));
-    }
-
-    _textController.clear();
-  }
-
-  void _editItem(ListItemBloc listItemBloc, int index) {
+  void setLocale(Locale value) {
     setState(() {
-      _textController.text = listItemBloc.state.items[index];
-      _editingItemIndex = index;
+      _locale = value;
     });
   }
 
+  LanguageBloc languageBloc;
+  _MyAppState({required this.languageBloc});
+
   @override
   Widget build(BuildContext context) {
-    final listItemBloc = BlocProvider.of<ListItemBloc>(context);
 
-    return Scaffold(
-        appBar: AppBar(
-          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-          title: Text(widget.title),
-        ),
-        body: Container(
-          margin: const EdgeInsets.all(16.0),
-          child: Column(
-            children: <Widget>[
-              TextField(
-                decoration: const InputDecoration(
-                    border: OutlineInputBorder(), labelText: 'Enter text here'),
-                controller: _textController,
-                onSubmitted: (text) {
-                  _onEnterClicked(listItemBloc);
-                },
-              ),
-              Container(
-                margin: const EdgeInsets.all(16.0),
-                child: ElevatedButton(
-                  onPressed: () {
-                    _onEnterClicked(listItemBloc);
-                  },
-                  child: const Text('Submit'),
+    return BlocProvider<LanguageBloc>.value(
+      value: languageBloc,
+      child: BlocBuilder<LanguageBloc, Language>(
+        builder: (context, state) {
+          return MaterialApp(
+            title: 'Flutter Demo',
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+              useMaterial3: true,
+            ),
+            locale: Locale.fromSubtags(languageCode: state.code),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: MultiBlocProvider(
+              providers: [
+                BlocProvider<ListItemBloc>(
+                  create: (context) => ListItemBloc(),
                 ),
-              ),
-              Expanded(child: BlocBuilder<ListItemBloc, ListItemState>(
-                  builder: (context, state) {
-                return ListView.builder(
-                    itemCount: state.items.length,
-                    itemBuilder: (context, index) {
-                      return ListTile(
-                        title: Text(state.items[index]),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () => _editItem(listItemBloc, index),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete),
-                              onPressed: () =>
-                                  listItemBloc.add(RemoveItemEvent(index)),
-                            ),
-                          ],
-                        ),
-                      );
-                    });
-              })),
-            ],
-          ),
-        ));
-  }
-
-  @override
-  void dispose() {
-    _textController.dispose();
-    super.dispose();
+                BlocProvider<LanguageBloc>(
+                  create: (context) => languageBloc,
+                ),
+              ],
+              child: const MyHomePage()
+            )
+          );
+        }
+      ),
+    );
   }
 }
